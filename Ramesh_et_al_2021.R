@@ -507,6 +507,33 @@ pac_miRNA_plot_all$plots$Expression_Anno_1$Grand_means + pac_miRNA_plot_all$plot
 
 #  Sup. Fig. S4 A -
 
+
+#nuclear
+df_nuc<-df[df$gen %in% "nuc",]
+df2<-aggregate(df_nuc$cpm, by=list(df_nuc$type.1), FUN=mean)
+df2$perc<-df2$x/sum(df2$x)*100
+
+p1<-ggplot(df2, aes(x="", y=x, fill=Group.1))+
+  geom_bar(stat="identity", width=1, color="white")+
+  coord_polar("y", start=0)
+p12<-ggplot(df2, aes(x="", y=perc, fill=Group.1))+
+  geom_bar(stat="identity", width=1, color="white")+
+  coord_polar("y", start=0)
+
+
+#mitochondrial
+df_mit<-df[df$gen %in% "mito",]
+df22<-aggregate(df_mit$cpm, by=list(df_mit$type.1), FUN=mean)
+df22$perc<-df22$x/sum(df22$x)*100
+
+p2<-ggplot(df22, aes(x="", y=x, fill=Group.1))+
+  geom_bar(stat="identity", width=1, color="white")+
+  coord_polar("y", start=0)
+p22<-ggplot(df22, aes(x="", y=perc, fill=Group.1))+
+  geom_bar(stat="identity", width=1, color="white")+
+  coord_polar("y", start=0)
+
+
 #  Sup. Fig. S4 B -
 
 #  Sup. Fig. S4 C -
