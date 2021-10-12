@@ -2,7 +2,7 @@
 # ---------------                                    This is the R code used in Ramesh et al. 2021                                           ---------------
 # ---------------                       Included here are both proteomic analysis, as well as small RNA analysis                             ---------------
 # ---------------                 In all datasets, D2 equals 3 g/L of sugar, D4 equals 30 g/L and D6 equals 300 g/L                          ---------------
-# ---------------               If you have any questions or concern, you can ge in touch with me at signe.skog@liu.se                       ---------------
+# ---------------               If you have any questions or concern, you can get in touch with me at signe.skog@liu.se                      ---------------
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -19,9 +19,9 @@ library(xlsx)
 
 #Design
 diet<-data.frame(row.names = c("D2", "D2_2","D2_3", "D4", "D4_2", "D4_3", "D6", "D6_2", "D6_3"),  Diet= rep(c("D2", "D4", "D6"), each=3))
-design<-model.matrix(~ diet$Diet)
 # relevel "Diet" to use D4 (30g/L) as intercept for model
 diet$Diet<-relevel(diet$Diet, "D4")
+design<-model.matrix(~ diet$Diet)
 
 
 #This is the desired Design
