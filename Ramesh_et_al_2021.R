@@ -87,8 +87,7 @@ counts_d<-make_counts(input = "/run/media/sigsk47/Elements/fasta/NAC",
 pheno_d<-data.frame(row.names = colnames(counts_d$counts), names=colnames(counts_d$counts))
 pac_d<-make_PAC(pheno = pheno_d, counts = counts_d, anno = NULL)
 
-
-#  2.1.2 Human PAC file                                                   ------------
+#  2.1.2 Human PAC file                                                 ---------------
 
 
 counts_h<-make_counts(input = "/run/media/sigsk47/Elements/hs2/Merged_fastq",
@@ -104,7 +103,7 @@ pac_h<-make_PAC(pheno = pheno_h, counts = counts_h, anno = NULL)
 #  2.3 Annotation                                                       ---------------     
 
 
-#  2.3.1 Genomic annotation fly                                           ---------------
+#  2.3.1 Genomic annotation fly                                         ---------------
 
 
 map_reanno(PAC=pac_d, ref_paths=list(genome="/run/media/sigsk47/Elements1/PhD/R/Genomes/Drosophila_melanogaster_ref/Drosophila_melanogaster/UCSC/dm6/Sequence/BowtieIndex/genome.fa"),
@@ -128,6 +127,7 @@ pac_d <- PAC_filter(pac_d,
 
 
 #  2.3.2 Biotype annotation fly                                         ---------------
+
 
 ref_b=list(Ensenmbl="/run/media/sigsk47/Elements1/PhD/R/Genomes/Drosophila_melanogaster/Drosophila_melanogaster/Ensembl/Drosophila_melanogaster.BDGP6.ncrna.fa",
            tRNA="/run/media/sigsk47/Elements1/Documents/PhD/R/Genomes/Drosophila_melanogaster/Drosophila_melanogaster/tRNA_reanno/tRNA_mature.fa",
@@ -177,7 +177,7 @@ pac_d <- simplify_reanno(input=pac_d,
                          merge_pac = TRUE)
 
 
-#  2.3.3 Genomic annotation Human                                         ---------------
+#  2.3.3 Genomic annotation Human                                       ---------------
 
 
 map_reanno(PAC=pac_h, 
@@ -200,7 +200,7 @@ pac_h <- add_reanno(reanno_genome,
 pac_h<-PAC_filter(pac_h, anno_target = list("genome", c("mis0")))
 
 
-#  2.3.4 Biotype annotation human                                        ---------------
+#  2.3.4 Biotype annotation human                                       ---------------
 
 
 ref_b=list(Ensenmbl="/home/sigsk47/Documents/Genomes/human/ncRNA/HS.GRCh38.ncRNA.fa",
@@ -264,6 +264,7 @@ pac_d<-PAC_filter(pac_d, norm="cpm", threshold=10, coverage=25)
 
 pac_d<-PAC_filter(pac_d, anno_target = list("Biotypes_mis0", c("lncRNA","miRNA","Mt_tRNA","no_anno","other","piRNA","protein_coding","tRNA")))
 
+pac_d@Pheno$DI<-rep(c("D4_C", "D4_NAC", "D6_C", "D6_NAC"), each=5)
 pac_d<-PAC_summary(pac_d, norm="cpm", type="means", pheno_target = list("DI"))
 pac_d<-PAC_summary(pac_d, norm="cpm", type="log2FC", pheno_target = list("DI"))
 pac_d<-PAC_summary(pac_d, norm="cpm", type="log2FC", pheno_target = list("DI"), rev=TRUE)
@@ -285,12 +286,12 @@ pac_h<-PAC_filter(pac_h, norm="cpm", threshold=10, coverage=25)
 
 pac_miRNA<-PAC_filter(pac_d, 
                       anno_target=list("Biotypes_mis0",c("miRNA")))
-map_object<-PAC_mapper(pac_miRNA, 
+map_object_mir<-PAC_mapper(pac_miRNA, 
                        ref="/home/sigsk47/Documents/Genomes/fly/miRNA/miRBase_21-dme.fa", 
                        mismatches=0,
                        threads=1,
                        report_string = T)
-map_object <-  map_object[!unlist(lapply(map_object, function(x){x[[2]][1,1] == "no_hits"}))]
+map_object_mir <-  map_object_mir[!unlist(lapply(map_object_mir, function(x){x[[2]][1,1] == "no_hits"}))]
 
 
 miRNA_class<-function (PAC, map, terminal = 5) 
@@ -318,27 +319,27 @@ miRNA_class<-function (PAC, map, terminal = 5)
     # half_type <- ifelse(align$type_start_loop2 == TRUE | 
     #                       align$type_end_loop2 == TRUE, "half", "tRF")
     return(data.frame(miRNA_ref = ref_name, seq = rownames(align))) 
-           #class = paste(terminal_type, half_type, sep = "-"), 
-           #decoder = align$decoder, acceptor = align$acceptor))
+    #class = paste(terminal_type, half_type, sep = "-"), 
+    #decoder = align$decoder, acceptor = align$acceptor))
   })
-    type_vector <- do.call("rbind", type_vector)
-    rownames(type_vector) <- NULL
-    type_vector <- split(type_vector, type_vector$seq)
-    finished <- lapply(type_vector, function(x) {
-      df <- data.frame(seq = paste0(sort(unique(x$seq)), collapse = ";"), 
-                       miRNA_ref = paste0(sort(unique(x$miRNA_ref)), collapse = ";"))
-      return(df)
-    })
-    finished <- do.call("rbind", finished)
-    PAC@Anno$seq <- rownames(PAC@Anno)
-    pac_trna <- PAC_filter(PAC, anno_target = list("seq", finished$seq), 
-                           subset_only = TRUE)
-    stopifnot(identical(rownames(pac_trna@Anno), as.character(finished$seq)))
-    pac_trna@Anno <- cbind(pac_trna@Anno[, 1, drop = FALSE], 
-                           finished[, -1])
-    return(pac_trna)
+  type_vector <- do.call("rbind", type_vector)
+  rownames(type_vector) <- NULL
+  type_vector <- split(type_vector, type_vector$seq)
+  finished <- lapply(type_vector, function(x) {
+    df <- data.frame(seq = paste0(sort(unique(x$seq)), collapse = ";"), 
+                     miRNA_ref = paste0(sort(unique(x$miRNA_ref)), collapse = ";"))
+    return(df)
+  })
+  finished <- do.call("rbind", finished)
+  PAC@Anno$seq <- rownames(PAC@Anno)
+  pac_trna <- PAC_filter(PAC, anno_target = list("seq", finished$seq), 
+                         subset_only = TRUE)
+  stopifnot(identical(rownames(pac_trna@Anno), as.character(finished$seq)))
+  pac_trna@Anno <- cbind(pac_trna@Anno[, 1, drop = FALSE], 
+                         finished[, -1])
+  return(pac_trna)
 }
-pac_mirna<-miRNA_class(pac_miRNA, map=map_object)
+pac_mirna<-miRNA_class(pac_miRNA, map=map_object_mir)
 
 df<-pac_mirna@Anno
 
@@ -348,37 +349,20 @@ identical(rownames(df), rownames(pac_miRNA@Anno))
 pac_miRNA@Anno$mir<-df$`finished[, -1]`
 pac_miRNA@Anno$mir<-sub(" .*", "\\1", pac_miRNA@Anno$mir)
 
-# pac_miRNA<-list(pheno=pac_d@Pheno, anno=as.data.frame(Book2$`Refined annotation`), norm=as.data.frame(Book2[,6:25]), summary=as.data.frame(Book2[,26:29]))
-# 
-# pac_miRNA<-asS4(pac_miRNA)
-# pac_miRNA$Pheno<-pac_miRNA$pheno
-# pac_miRNA$Anno<-pac_miRNA$anno
-# pac_miRNA$norm$cpm<-pac_miRNA$norm
-
 pac_miRNA_plot <- PAC_trna(pac_miRNA, norm="cpm", filter = NULL,
-                           join = FALSE, top = 10, log2fc = TRUE,
-                           pheno_target = list("DI", c("D4_C", "D6_C", "D4_NAC", "D6_NAC")),
+                           join = TRUE, top = 10, log2fc = TRUE,
+                           pheno_target = list("DI", c("D4_C", "D6_C")),
                            anno_target_1 = list("mir"),
                            anno_target_2 = list("mir"))
 
 pac_miRNA_plot_all <- PAC_trna(pac_miRNA, norm="cpm", filter = NULL,
-                               join = FALSE, top = 41, log2fc = TRUE,
-                               pheno_target = list("DI", c("D4_C", "D6_C", "D4_NAC", "D6_NAC")),
+                               join = TRUE, top = 41, log2fc = TRUE,
+                               pheno_target = list("DI", c("D4_C", "D6_C")),
                                anno_target_1 = list("mir"),
                                anno_target_2 = list("mir"))
 
 
-df_t<-data.frame(pac_miRNA@norm$cpm, pac_miRNA@Anno$mir)
-df_t2<-aggregate(df_t, by=list(df_t$pac_miRNA.Anno.mir), FUN=mean)
-df_t3<-as.data.frame(df_t2[,1:6])
-df_t3$d4n<-rowMeans(df_t2[,7:11])
-df_t3$d6<-rowMeans(df_t2[,12:16])
-df_fc_d6<-
-
-df_d4nac<-aggregate(pac_miRNA_plot_all$data$anno_target_1$D4_NAC$value, by=list(pac_miRNA_plot_all$data$anno_target_1$D4_NAC$Group.1), FUN=mean)
-
-
-#  2.5.2 Negative Binomial distribution of miRNA
+#  2.5.2 Negative Binomial distribution of miRNA                        ----------------
 
 
 library(MASS)
@@ -453,11 +437,11 @@ nb_res_list <- nb_func(df_l)
 nb_res_list_NAC <- nb_func_NAC(df_l)
 
 
-
 #  2.6 tsRNA analysis                                                   ----------------   
 
 
 #  2.6.1 tsRNA mapping and data preparation                             ----------------
+
 
 pac_tr<-PAC_filter(pac_d, 
                    anno_target=list("Biotypes_mis0", c("tRNA", "Mt_tRNA")))
@@ -468,18 +452,79 @@ map_object_tRNA <- PAC_mapper(pac_tr,
                               report_string = T)
 map_object<-map_rangetype(map_object_tRNA, type="percent")
 
-map_object_ss <- map_rangetype(map_object_tRNA, min_loop_width = 4,
+map_object_ss <- map_rangetype(map_object, min_loop_width = 4,
                                type="ss", 
                                ss="/home/sigsk47/Documents/Genomes/fly/tRNA/Finished_tRNA_Drosophila_loop_anno.ss")       
 map_object_ss <-  map_object_ss[!unlist(lapply(map_object_ss, function(x){x[[2]][1,1] == "no_hits"}))]
 
-pac_tRNA <- tRNA_class(pac_tr, 
-                       map=map_object_ss, 
-                       terminal=5)
 
-map_object <-  map_object[!unlist(lapply(map_object, function(x){x[[2]][1,1] == "no_hits"}))]
-pac_tRNA <- tRNA_class(pac_tr, 
-                       map=map_object, 
+tRNA_class_SS<-function (PAC, map, terminal = 5) 
+{
+  if (any(unlist(lapply(map, function(x) {
+    x[[2]][1, 1] == "no_hits"
+  }))) == TRUE) {
+    cat("The map object contains references without hits. Please remove these (see ?map_rangetype for example)")
+    stopifnot(any(unlist(lapply(map, function(x) {
+      x[[2]][1, 1] == "no_hits"
+    }))) == FALSE)
+  }
+  type_vector <- lapply(map, function(x) {
+    map
+    align <- x$Alignments
+    reference_length <- x$Ref_seq@ranges@width
+    ref_name <- x$Ref_seq@ranges@NAMES
+    decdr<-str_extract(ref_name, "(.)(.)(.)-[[:upper:]][[:upper:]][[:upper:]]")
+    align$decoder<-sub("-.*", "", decdr)
+    # decdr<-str_match(ref_name, "-(.*)")[,2]
+    # align$decoder<-sub("-.*", "", decdr)
+    accptr<-str_extract(ref_name, "-[[:upper:]][[:upper:]][[:upper:]]")
+    align$acceptor<-str_sub(accptr, start=2, end=5)
+    terminal_type <- ifelse(align$Align_start <= terminal, 
+                            "5'", ifelse(reference_length - align$Align_end <= 
+                                           terminal, "3'", "i'"))
+    half_type <- ifelse(align$type_start_per == TRUE | 
+                          align$type_end_per == TRUE, "half", "tRF")
+    return(data.frame(tRNA_ref = ref_name, seq = rownames(align), 
+                      class = paste(terminal_type, half_type, sep = "-"), 
+                      decoder = align$decoder, acceptor = align$acceptor))
+  })
+  type_vector <- do.call("rbind", type_vector)
+  rownames(type_vector) <- NULL
+  type_vector <- split(type_vector, type_vector$seq)
+  finished <- lapply(type_vector, function(x) {
+    df <- data.frame(seq=paste0(sort(unique(x$seq)), collapse=";"), 
+                     class=paste0(sort(unique(x$class)), collapse=";"),
+                     decoder=paste0(sort(unique(x$decoder)), collapse=";"),
+                     acceptor=paste0(sort(unique(x$acceptor)), collapse=";"),
+                     tRNA_ref=paste0(sort(unique(x$tRNA_ref)), collapse=";"))
+    type <- paste(sort(unique(x$decoder)), sort(unique(x$acceptor)), sep="-")
+    df$type <- paste0(type, collapse=";")
+    return(df)
+  })
+  finished <- do.call("rbind", finished)
+  if(isS4(PAC)){
+    PAC@Anno$seq <- rownames(PAC@Anno)
+    pac_trna <- PAC_filter(PAC, anno_target=list("seq", finished$seq), 
+                           subset_only=TRUE)
+    # Before you merge make sure both dataframes are matching
+    stopifnot(identical(rownames(pac_trna@Anno), as.character(finished$seq)))
+    pac_trna@Anno <- cbind(pac_trna@Anno[,1, drop=FALSE], finished[,-1])
+  }
+  else {
+    PAC$Anno$seq <- rownames(PAC$Anno)
+    pac_trna <- PAC_filter(PAC, anno_target=list("seq", finished$seq), 
+                           subset_only=TRUE)
+    # Before you merge make sure both dataframes are matching
+    stopifnot(identical(rownames(pac_trna$Anno), as.character(finished$seq)))
+    pac_trna$Anno <- cbind(pac_trna$Anno[,1, drop=FALSE], finished[,-1])
+  }
+  return(pac_trna)
+}
+
+
+
+pac_tRNA <- tRNA_class_SS(pac_tr, 
+                       map=map_object_ss, 
                        terminal=5)
 
 pac_tRNA@Anno$type <- paste0(pac_tRNA@Anno$decoder, sep="-", pac_tRNA@Anno$acceptor)
@@ -500,6 +545,7 @@ df<-data.frame(pac_tRNA@summary$cpmMeans_DI,
                genome=paste0(pac_tRNA@Anno$type, sep="-", pac_tRNA@Anno$class, sep="-", pac_tRNA@Anno$genome))
 df_l<-tidyr::gather(df, key="sample", value="cpm", -c(type, gen, type.1, genome))
 df_s<-aggregate(df_l$cpm, by=list(df_l$sample), FUN=mean)
+
 #for heat map
 df_hm<-df[,c(1:5)]
 df_hm<-aggregate(df_hm[,1:4], by=list(df_hm$type), FUN=mean)
@@ -517,7 +563,7 @@ clstrs<-sort(cutree(out$tree_row, k=4))
 clstrs<-as.data.frame(clstrs)
 
 
-#  2.6.3 Negative Binomial Model using functions from section 2.5.2    ----------------
+#  2.6.3 Negative Binomial Model using functions from section 2.5.2     ----------------
 
 
 pac_tRNA@Anno$type3<-paste0(pac_tRNA@Anno$type, sep="-", pac_tRNA@Anno$genome)
@@ -530,9 +576,11 @@ df_l$DI <- sub('^([^_]+_[^_]+).*', '\\1', df_l$sample)
 nb_res_list <- nb_func(df_l)
 nb_res_list_NAC <- nb_func_NAC(df_l)
 
+
 #  2.7 Data Visulaization Figure 3                                      ----------------   
 
-Library(patchwork)
+
+library(patchwork)
 
 
 #  2.8 Color code                                                       ---------------- 
@@ -559,14 +607,15 @@ scales::show_col(col_pie)
 
 c45_10<-c("#d56d64",
           "#e19355",
-          "#f4dd91",
-          "#4c9051",
-          "#b1cecf",
-          "#a790cb",
           "#6282be",
-          "#b77356",
-          "#9c8c7c",
-          "#8eaaa2")
+          "#f4dd91",
+          "#b1cecf",
+          "#7f9c9c",
+          "#70657e",
+          "#a790cb",
+          "#4c9051",
+          "#b9b9b9",
+          "#b3b3b3")
 scales::show_col(c45_10)
 
 
@@ -599,7 +648,7 @@ psd<-PAC_sizedist(pac_d,
 (psd$Histograms$D4_C+psd$Histograms$D4_NAC+psd$Histograms$D6_C+psd$Histograms$D6_NAC)+plot_layout(guides = 'collect')
 
 
-#  Fig 3.D - heidi
+#  Fig 3.D - LogFC
 
 
 df_plot<-data.frame(d4vsd6=pac_d@summary$Log2FC_DI$D4_C_vs_D6_C, 
@@ -645,7 +694,6 @@ df_m10<-data.frame(pac_miRNA@norm$cpm[rownames(pac_miRNA@norm$cpm) %in% seqs,])
 df_m10<-as.data.frame(colMeans(df_m10))
 colnames(df_m10)<-"cpm"
 df_m10$sample<-rownames(df_m10)
-#df_m10_l<-gather(df_m10, key="sample", value="cpm")
 df_m10$DI<-sub('^([^_]+_[^_]+).*', '\\1', df_m10$sample)
 df_m10$DI<-factor(df_m10$DI, levels=c("D4_c", "D6_c", "D4_NAc", "D6_NAc"))
 
@@ -660,8 +708,8 @@ mir10plot
 #  Fig 3.G - covplot mir-10
 
 
-cp_mir10<-PAC_covplot(pac_miRNA, map=map_object, summary_target = list("cpmMeans_DI"),
-                      map_target="dme-mir-10") 
+cp_mir10<-PAC_covplot(pac_miRNA, map=map_object_mir, summary_target = list("cpmMeans_DI"),
+                     colors = c("#e67823","#ca9e7d","#d98f59","#cab09e")) 
 cp_mir10$`dme-mir-10`
   
   
@@ -695,20 +743,7 @@ pie_nuc / pie_mit
 #  Fig 4 C - heatmap
 
 
-df_trna_hm<-data.frame(pac_trna$summary$cpmMeans_DI, type=pac_trna$Anno$type2)
-df_trna_hm<-aggregate(.~type, data=df_trna_hm, mean)
-rownames(df_trna_hm)<-df_trna_hm$type
-df_trna_hm<-t(df_trna_hm[,2:5])
-pheatmap(df_trna_hm,
-         cluster_rows = F, cluster_cols = T,
-         legend = T,
-         show_rownames = T,
-         gaps_row = c(1,2,3),
-         scale="column",
-         angle_col=c("45"),
-         main="individual transcripts (all tRNA, n=229)",
-         fontsize=13,
-         color = colorRampPalette(c("#497279", "white", "#A44A3F"))(50))
+out
 
 
 #  Fig 4 D - coveragegraphs
@@ -751,7 +786,7 @@ jp_S3A$D4_C_vs_D4_NAC
 pac_miRNA_plot_all$plots$Expression_Anno_1$Grand_means + pac_miRNA_plot_all$plots$Log2FC_Anno_1
 
 
-#  Sup. Fig. S4 A -
+#  Sup. Fig. S4 A - cpm of all tsRNAs
 
 
 df_fin<-aggregate(df_l$cpm, by=list(df_l$sample, df_l$type.1, df_l$gen), FUN=mean)
@@ -763,7 +798,7 @@ all_cpm<-ggplot(df_fin_all, aes(x=Group.1, y=x, fill=Group.2))+
   scale_fill_manual(values=c("#84b67d", "#c2d7a3", "#5167a4", "#ffd96b", "#f3ebca"))
 
 
-#  Sup. Fig. S4 B -
+#  Sup. Fig. S4 B - cpm of tsRNAs dependent on clustering
 
 
 clstrs$type<-rownames(clstrs)
@@ -778,7 +813,8 @@ ggplot(df_fin, aes(x=Group.1, y=x, fill=Group.2))+
   scale_fill_manual(values=c("#84b67d", "#c2d7a3", "#5167a4", "#ffd96b", "#f3ebca"))
 
 
-#  Sup. Fig. S4 C -
+#  Sup. Fig. S4 C - percent of tsRNAs dependent on clustering
+
 
 ggplot(df_fin, aes(x=Group.1, y=x, fill=Group.2))+
   geom_bar(position="fill", stat="identity")+
