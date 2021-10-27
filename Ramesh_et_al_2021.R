@@ -629,6 +629,8 @@ logp<-ggplot(df_plot, aes(x=d4vsnac, y=d4vsd6, color=bio))+
   annotate(geom="text", x= 2, y= -1.5, label="low 30g/L, high NAC", size=5,color="black")
 
 logp
+
+
 #  Fig 3.E
 
 
@@ -638,10 +640,21 @@ pac_miRNA_plot$plots$Expression_Anno_1$Grand_means + pac_miRNA_plot$plots$Log2FC
 #  Fig 3.F - miRNA
 
 
+seqs<-rownames(pac_miRNA@Anno[pac_miRNA@Anno$mir %in% "dme-mir-10",])
+df_m10<-data.frame(pac_miRNA@norm$cpm[rownames(pac_miRNA@norm$cpm) %in% seqs,])
+df_m10<-as.data.frame(colMeans(df_m10))
+colnames(df_m10)<-"cpm"
+df_m10$sample<-rownames(df_m10)
+#df_m10_l<-gather(df_m10, key="sample", value="cpm")
+df_m10$DI<-sub('^([^_]+_[^_]+).*', '\\1', df_m10$sample)
+df_m10$DI<-factor(df_m10$DI, levels=c("D4_c", "D6_c", "D4_NAc", "D6_NAc"))
 
+mir10plot<-ggplot(df_m10, aes(x=DI, y=cpm, fill=DI))+
+  geom_boxplot()+
+  theme_classic()+
+  scale_fill_manual(values = c("#e67823","#ca9e7d","#d98f59","#cab09e"))
 
-#FILL THIS IN
-
+mir10plot
 
 
 #  Fig 3.G - covplot mir-10
@@ -652,10 +665,32 @@ cp_mir10<-PAC_covplot(pac_miRNA, map=map_object, summary_target = list("cpmMeans
 cp_mir10$`dme-mir-10`
   
   
-  #  2.8 Data Visualization Figure 4                                      ---------------- 
+#  2.8 Data Visualization Figure 4                                      ---------------- 
 
 
 #  Fig 4 B - piecharts mito vs nuc
+
+
+df_nuc<-df_l[df_l$gen %in% "nuc",]
+df2<-aggregate(df_nuc$cpm, by=list(df_nuc$type.1), FUN=mean)
+df2$perc<-df2$x/sum(df2$x)*100
+
+pie_nuc<-ggplot(df2, aes(x="", y=perc, fill=Group.1))+
+  geom_bar(stat="identity", width=1, color="white")+
+  coord_polar("y", start=0)+
+  scale_fill_manual(values=c("#84b67d", "#c2d7a3", "#5167a4", "#ffd96b"))
+
+df_mit<-df_l[df_l$gen %in% "mito",]
+df22<-aggregate(df_mit$cpm, by=list(df_mit$type.1), FUN=mean)
+df22$perc<-df22$x/sum(df22$x)*100
+
+pie_mit<-ggplot(df22, aes(x="", y=perc, fill=Group.1))+
+  geom_bar(stat="identity", width=1, color="white")+
+  coord_polar("y", start=0)+
+  scale_fill_manual(values=c("#84b67d", "#c2d7a3", "#5167a4", "#ffd96b", "#f3ebca"))
+
+pie_nuc / pie_mit
+
 
 #  Fig 4 C - heatmap
 
@@ -678,50 +713,75 @@ pheatmap(df_trna_hm,
 
 #  Fig 4 D - coveragegraphs
 
+
+pac_tRNA@summary$cpmMeans_DI<-pac_tRNA@summary$cpmMeans_DI[,c(3,4,2,1)]
 cp_mit_tRNA<-PAC_covplot(pac_tRNA, map=map_object_tRNA, summary_target = list("cpmMeans_DI"),
-                         map_target="tRNA-Ala-AGC-1-1_chr3R:17657145-17657217_(+)")
-cp_mit_tRNA$ + cp_mit_tRNA$ + cp_mit_tRNA$
-  
-  #  2.9 Data Visualization Supplementary Figures                         ---------------- 
+                         style = "solid",
+                         colors = c(  "#828c9e", "#aeb8c7", "#b8b8b8", "#f3dc8f"))
+cp_mit_tRNA$`mt-tRNA-Gly-TCC` / cp_mit_tRNA$`mt-tRNA-Ile-GAT` / cp_mit_tRNA$`mt-tRNA-Met-CAT`
+
+
+#  2.9 Data Visualization Supplementary Figures                         ---------------- 
+
 
 #  Sup. Fig. S3 A - jitter diet 
 
+
+pac_d@Anno$gen<-c("nuc")
+pac_d@Anno[grepl("chrM", pac_d@Anno$mis0_genome),]$gen<-"mito"
+pac_d@Anno$genbio<-paste0(pac_d@Anno$Biotypes_mis0, sep=" ", pac_d@Anno$gen)
+
+jp_S3A<-PAC_jitter(pac_d, summary_target = list("Log2FC_DI"), anno_target = list("genbio", 
+  c("lncRNA nuc", "miRNA nuc", "tRNA nuc", "Mt_tRNA mito", "protein_coding nuc", 
+    "protein_coding mito", "piRNA nuc", "piRNA mito", "other nuc")),
+     colors = c45_10)
+
+jp_S3A$D4_C_vs_D6_C
+
+
 #  Sup. Fig. S3 B - jitter diet vs nac 
 
+
+jp_S3A$D4_C_vs_D4_NAC
+
+
 #  Sup. Fig. S3 C - all miRNA 
+
+
 pac_miRNA_plot_all$plots$Expression_Anno_1$Grand_means + pac_miRNA_plot_all$plots$Log2FC_Anno_1
+
 
 #  Sup. Fig. S4 A -
 
 
-#nuclear
-df_nuc<-df[df$gen %in% "nuc",]
-df2<-aggregate(df_nuc$cpm, by=list(df_nuc$type.1), FUN=mean)
-df2$perc<-df2$x/sum(df2$x)*100
+df_fin<-aggregate(df_l$cpm, by=list(df_l$sample, df_l$type.1, df_l$gen), FUN=mean)
+df_fin_all<-aggregate(df_l$cpm, by=list(df_l$sample, df_l$type.1), FUN=mean)
+df_fin_all$Group.1<-factor(df_fin_all$Group.1, levels = c("D4_C", "D6_C", "D4_NAC", "D6_NAC"))
 
-p1<-ggplot(df2, aes(x="", y=x, fill=Group.1))+
-  geom_bar(stat="identity", width=1, color="white")+
-  coord_polar("y", start=0)
-p12<-ggplot(df2, aes(x="", y=perc, fill=Group.1))+
-  geom_bar(stat="identity", width=1, color="white")+
-  coord_polar("y", start=0)
-
-
-#mitochondrial
-df_mit<-df[df$gen %in% "mito",]
-df22<-aggregate(df_mit$cpm, by=list(df_mit$type.1), FUN=mean)
-df22$perc<-df22$x/sum(df22$x)*100
-
-p2<-ggplot(df22, aes(x="", y=x, fill=Group.1))+
-  geom_bar(stat="identity", width=1, color="white")+
-  coord_polar("y", start=0)
-p22<-ggplot(df22, aes(x="", y=perc, fill=Group.1))+
-  geom_bar(stat="identity", width=1, color="white")+
-  coord_polar("y", start=0)
+all_cpm<-ggplot(df_fin_all, aes(x=Group.1, y=x, fill=Group.2))+
+  geom_bar(position="stack", stat="identity")+
+  scale_fill_manual(values=c("#84b67d", "#c2d7a3", "#5167a4", "#ffd96b", "#f3ebca"))
 
 
 #  Sup. Fig. S4 B -
 
+
+clstrs$type<-rownames(clstrs)
+df_tot<-merge(df_l, clstrs, by.x= "type", by.y = "type", all.x=TRUE)
+df_fin<-aggregate(df_tot$cpm, by=list(df_tot$sample, df_tot$type.1, df_tot$clstrs), FUN=mean)
+df_fin$Group.1<-factor(df_fin$Group.1, levels = c("D4_C", "D6_C", "D4_NAC", "D6_NAC"))
+df_fin$Group.3<-factor(df_fin$Group.3, levels = c(3,4,2,1))
+
+ggplot(df_fin, aes(x=Group.1, y=x, fill=Group.2))+
+  geom_bar(position="stack", stat="identity")+
+  facet_grid(.~Group.3)+
+  scale_fill_manual(values=c("#84b67d", "#c2d7a3", "#5167a4", "#ffd96b", "#f3ebca"))
+
+
 #  Sup. Fig. S4 C -
 
-#  2.9.
+ggplot(df_fin, aes(x=Group.1, y=x, fill=Group.2))+
+  geom_bar(position="fill", stat="identity")+
+  facet_grid(.~Group.3)+
+  scale_fill_manual(values=c("#84b67d", "#c2d7a3", "#5167a4", "#ffd96b", "#f3ebca"))
+
