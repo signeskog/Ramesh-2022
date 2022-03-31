@@ -1,4 +1,4 @@
-# Ramesh-2021
+# Ramesh-2022
 This repository contains code used in the publication "Nutritional dependence of sperm mitochondrial metabolism and small RNA biogenesis" by Ramesh et. al., found in pre-print format here: https://www.biorxiv.org/content/10.1101/2021.10.20.465156v1
 
 The code contains the workflow for both proteomic analyses as well as small non-coding RNA sequencing analysis performed in manuscript. 
