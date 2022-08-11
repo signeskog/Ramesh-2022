@@ -821,3 +821,277 @@ ggplot(df_fin, aes(x=Group.1, y=x, fill=Group.2))+
   facet_grid(.~Group.3)+
   scale_fill_manual(values=c("#84b67d", "#c2d7a3", "#5167a4", "#ffd96b", "#f3ebca"))
 
+
+
+#     Sup. Fig S4             ----------------
+
+#   create new PAC file from diet D2 D4 and D6 flowcell - here called pac_v 
+
+
+counts_v<-make_counts(input = "/run/media/sigsk47/Elements/fasta/spermdiet2022",
+                      trimming="seqpac",
+                      threads=10,
+                      plot=TRUE,
+                      parse="default_neb", 
+                      save_temp=FALSE)
+
+
+
+pheno_v<-data.frame(row.names = colnames(counts_v$counts), names=colnames(counts_v$counts))
+pac_v<-make_PAC(pheno = pheno_v, counts = counts_v, anno = NULL)
+
+
+#   Genomic annotation fly                                         ---------------
+
+
+map_reanno(PAC=pac_v, ref_paths=list(genome="/run/media/sigsk47/Elements1/PhD/R/Genomes/Drosophila_melanogaster_ref/Drosophila_melanogaster/UCSC/dm6/Sequence/BowtieIndex/genome.fa"),
+                                       #genome="/home/sigsk47/Documents/Genomes/fly/genome/EnsGenome/Drosophila_melanogaster.BDGP6.32.dna.toplevel.fa"), 
+           output_path="home/sigsk47/Documents/Genomes/out", 
+           type="internal",
+           mismatches=0, 
+           import="genome", 
+           threads=1, 
+           keep_temp=TRUE)
+reanno_genome <- make_reanno(reanno_path = "home/sigsk47/Documents/Genomes/out", 
+                             PAC= pac_v, 
+                             mis_fasta_check = TRUE)
+pac_v <- add_reanno(reanno_genome, 
+                    type="genome", 
+                    genome_max="all", 
+                    mismatches=0, 
+                    merge_pac = pac_v)
+pac_v <- PAC_filter(pac_v, 
+                    anno_target = list("genome", c("mis0")))
+
+
+#  2.3.2 Biotype annotation fly                                         ---------------
+
+
+ref_b=list(Ensenmbl="/run/media/sigsk47/Elements1/PhD/R/Genomes/Drosophila_melanogaster/Drosophila_melanogaster/Ensembl/Drosophila_melanogaster.BDGP6.ncrna.fa",
+           tRNA="/run/media/sigsk47/Elements1/Documents/PhD/R/Genomes/Drosophila_melanogaster/Drosophila_melanogaster/tRNA_reanno/tRNA_mature.fa",
+           rRNA="/run/media/sigsk47/Elements1/PhD/R/Genomes/Drosophila_melanogaster/Drosophila_melanogaster/rRNA_reanno/drosophila_rRNA_all.fa",
+           piRNA="/run/media/sigsk47/Elements1/PhD/R/Genomes/Drosophila_melanogaster/Drosophila_melanogaster/piRNA_piRBase/piR_dme.fa",
+           miRNA="/run/media/sigsk47/Elements1/PhD/R/Genomes/Drosophila_melanogaster/Drosophila_melanogaster/miRNA/miRBase_21-dme.fa",
+           protein_coding="/home/sigsk47/Documents/Genomes/fly/PC/DM_ens_BDGP6.32.cdna.fa")
+map_reanno(PAC=pac_v, 
+           ref_paths=ref_b, 
+           output_path="/home/sigsk47/Documents/Genomes/out", 
+           type="internal", 
+           mismatches=0, 
+           import="biotype", 
+           threads=1, 
+           keep_temp=F)
+reanno_bio<- make_reanno(reanno_path="/home/sigsk47/Documents/Genomes/out", 
+                         PAC=pac_v, 
+                         mis_fasta_check = TRUE)
+bio_search<- list(Ensenmbl=c("lncRNA", "lincRNA", "miRNA", "pre_miRNA", "rRNA", "snoRNA", 
+                             "snRNA", "tRNA", "lncRNA","misc","ribozyme","scaRNA","scRNA","snoRNA","snRNA" 
+                             ,"sRNA", "Mt_tRNA", "lncRNA","Mt_rRNA", "rRNA",
+                             "5SrRNA", "28SrRNA", "18SrRNA", "CR41606", "CR40582", "5.8SrRNA",
+                             "CR40611", "CR40679", "pre-rRNA", "2SrRNA", "CR40594", "CR40621"),
+                  rRNA=c("18S_rRNA", "16S_rRNA", "12S_rRNA", "28S_rRNA", "Other_rRNA", "5S_rRNA",
+                         "pre_S45_rRNA", "5.8S_rRNA"),
+                  miRNA="dme-",
+                  tRNA =c("tRNA", "mt-tRNA"),
+                  piRNA="piR",
+                  protein_coding=c("FB"))
+pac_v <- add_reanno(reanno=reanno_bio, 
+                   bio_search=bio_search, 
+                   type="biotype", 
+                   bio_perfect=TRUE, 
+                   mismatches = 0, 
+                   merge_pac=pac_v)
+hierarchy <- list(rRNA="18S_rRNA|16S_rRNA|12S_rRNA|28S_rRNA|Other_rRNA|5S_rRNA|pre_S45_rRNA|5.8S_rRNA|Ensenmbl_rRNA",
+                  Mt_tRNA="tRNA_mt-tRNA|Ensenmbl_Mt_tRNA",
+                  tRNA="Ensenmbl_tRNA|tRNA_tRNA",
+                  miRNA ="^miRNA|Ensenmbl_miRNA|Ensenmbl_pre_miRNA",
+                  lncRNA="Ensenmbl_lincRNA|Ensenmbl_lncRNA",
+                  piRNA="piRNA",
+                  protein_coding="protein_coding")
+pac_v <- simplify_reanno(input=pac_v, 
+                         hierarchy=hierarchy, 
+                         mismatches=0,
+                         bio_name="Biotypes_mis0",
+                         merge_pac = TRUE)
+
+
+#filtering the new pac
+
+
+seqs<-rownames(pac_d@Anno)
+pac_v<-PAC_filter(pac_v, anno_target=seqs)
+
+pac_v<-PAC_filter(pac_v, size=c(18,50), threshold=10, coverage = 60, anno_target = list("genome", "mis0"))
+pac_v<-PAC_norm(pac_v)
+pac_v<-PAC_filter(pac_v, norm="cpm", threshold=10, coverage=25)
+pac_v<-PAC_summary(pac_v, norm="cpm", type="means", pheno_target = list("DI"))
+pac_v<-PAC_summary(pac_v, norm="cpm", type="log2FC", pheno_target = list("DI"))
+pac_v<-PAC_summary(pac_v, norm="cpm", type="log2FC", pheno_target = list("DI"), rev=TRUE)
+
+
+pac_v<-PAC_summary(pac_v, norm="cpm", type="log2FC", pheno_target = list("Diet"), rev=TRUE)
+pac_flt<-PAC_filter(pac_v, anno_target = list("genome", "mis0"))
+pac_flt<-PAC_filter(pac_flt, anno_target = list("Biotypes_mis0", c(
+  "lncRNA","miRNA","Mt_tRNA","no_anno","other","piRNA","protein_coding","tRNA"
+)))
+
+df_plot<-data.frame(d4vsd6=pac_flt@summary$Log2FC_Diet$D2_vs_D4,
+                    d4vsnac=pac_flt@summary$Log2FC_Diet_rev$D6_vs_D4,
+                    bio=pac_flt@Anno$genbio)
+
+df_plot$bio<-factor(df_plot$bio, levels=c("miRNA-nuc","Mt_tRNA-mito","tRNA-nuc", "other"))
+df_plot$bio[is.na(df_plot$bio)]<-"other"
+df_plot<-df_plot[order(df_plot$bio, decreasing=T),]
+
+#plot graph
+logp<-ggplot(df_plot, aes(x=d4vsnac, y=d4vsd6, color=bio))+
+  geom_jitter(size=7, alpha=0.3)+
+  theme_classic()+
+  geom_hline(yintercept = 0, alpha=0.4)+
+  geom_vline(xintercept= 0, alpha=0.4)+
+    scale_color_manual(values = c( "#e19355",
+                                   "#f4dd91",
+                                   "#6282be", "#BFBFBF"))+
+  ylab("logFC 3 g/L / 30 g/L ")+
+  xlab("logFC 300 g/L 30 g/L")+
+  theme(legend.title = element_text(color = "black", size = 16),
+        legend.text = element_text(color = "black", size=10),
+        axis.title = element_text(size=16))+
+  annotate(geom="text", x= -1.3, y= 3.7, label="high 3 g/L, low 30 g/L", size=4,color="black")+
+  annotate(geom="text", x= 2, y= -2, label="high 300 g/L, low 30 g/L", size=4,color="black")
+
+logp
+
+
+#miRNA sup fig 4 B
+
+pac_miRNA<-PAC_filter(pac_v, 
+                      anno_target=list("Biotypes_mis0",c("miRNA")))
+
+map_object_mir<-PAC_mapper(pac_miRNA, 
+                           ref="C:/Users/sigsk47/Documents/PhD/Students and teaching/R/Genomes/Drosophila_melanogaster/Drosophila_melanogaster/miRNA/miRBase_21-dme.fa", 
+                           mismatches=0,
+                           threads=1,
+                           report_string = T)
+
+map_object_mir <-  map_object_mir[!unlist(lapply(map_object_mir, function(x){x[[2]][1,1] == "no_hits"}))]
+
+
+pac_mirna<-miRNA_class(pac_miRNA, map=map_object_mir)
+
+df<-pac_mirna@Anno
+
+df<-df[match(rownames(pac_miRNA@Anno), rownames(df)),]
+identical(rownames(df), rownames(pac_miRNA@Anno))
+
+pac_miRNA@Anno$mir<-df$`finished[, -1]`
+pac_miRNA@Anno$mir<-sub(" .*", "\\1", pac_miRNA@Anno$mir)
+
+
+df_p<-data.frame(pac_miRNA@norm$cpm, pac_miRNA@Anno$mir)
+df_p<-gather(df_p, key="sample", value="cpm", -pac_miRNA.Anno.mir)
+df_p$diet<-gsub("_.*", "", df_p$sample)
+df_p$batch<-gsub(".*_", "", df_p$sample)
+df_p$log<-log(df_p$cpm)
+
+
+mirnas<-c("dme-mir-10", "dme-mir-316", "dme-mir-276a", "dme-mir-276b", "dme-mir-31a", "dme-mir-275", "dme-mir-986", "dme-mir-184", "dme-mir-970",
+          "dme-mir-305")
+df_mir<-df_p[df_p$pac_miRNA.Anno.mir %in% mirnas,]
+
+
+df_mir$dt<-paste0(df_mir$pac_miRNA.Anno.mir, sep="=" ,df_mir$sample)
+df_mir2<-aggregate(df_mir$cpm, by=list(df_mir$dt), FUN=mean)
+df_mir2$mir<-gsub("=.*", "", df_mir2$Group.1)
+df_mir2$diet<-gsub(".*=", "", df_mir2$Group.1)
+df_mir2$diet<-gsub("_.*", "", df_mir2$diet)
+df_mir2$batch<-gsub(".*_", "", df_mir2$Group.1)
+df_mir2$log<-log(df_mir2$x)
+
+
+ggplot(df_mir2, aes(x=mir, y=log, fill=diet))+
+  geom_boxplot(aes(fill=diet))+
+  geom_point(position=position_dodge(width=0.75),aes(color=batch,group=diet))+
+  theme_classic(base_size = 16)
+
+
+#       Sup Fig 5A ------------------
+
+pac_v<-PAC_summary(pac_v, norm="cpm")
+pac_tr<-PAC_filter(pac_v, 
+                   anno_target=list("Biotypes_mis0", c("tRNA", "Mt_tRNA")))
+
+map_object_tRNA <- PAC_mapper(pac_tr, 
+                              ref="C:/Users/sigsk47/Documents/PhD/Students and teaching/R/Genomes/Drosophila_melanogaster/Drosophila_melanogaster/tRNA/tRNA/tRNA.fa", 
+                              mismatches=0, 
+                              threads=1, 
+                              report_string = T)
+map_object<-map_rangetype(map_object_tRNA, type="percent")
+
+map_object_ss <- map_rangetype(map_object, min_loop_width = 4,
+                               type="ss", 
+                               ss="C:/Users/sigsk47/Documents/PhD/Students and teaching/R/Genomes/Drosophila_melanogaster/Drosophila_melanogaster/tRNA/Finished_tRNA_Drosophila_loop_anno.ss")       
+map_object_ss <-  map_object_ss[!unlist(lapply(map_object_ss, function(x){x[[2]][1,1] == "no_hits"}))]
+
+
+pac_tRNA <- tRNA_class_SS(pac_tr, 
+                          map=map_object_ss, 
+                          terminal=5)
+
+pac_tRNA@Anno$type <- paste0(pac_tRNA@Anno$decoder, sep="-", pac_tRNA@Anno$acceptor)
+pac_tRNA@Anno$type2 <- paste0(pac_tRNA@Anno$type, sep="-", pac_tRNA@Anno$class)
+
+
+pac_tRNA@Anno$genome<-c("nuc")
+pac_comb<-pac_tr@Anno[match(rownames(pac_tRNA@Anno), rownames(pac_tr@Anno)),]
+pac_tRNA@Anno[grepl("mito", pac_comb$mis0_genome),]$genome<-"mito"
+table(pac_tRNA@Anno$genome)
+
+pac_tRNA
+
+df<-data.frame(pac_tRNA@summary$cpmMeans_Diet, 
+               type=paste0(pac_tRNA@Anno$type, sep="-", pac_tRNA@Anno$genome), 
+               gen=pac_tRNA@Anno$genome, 
+               type=pac_tRNA@Anno$class,
+               genome=paste0(pac_tRNA@Anno$type, sep="-", pac_tRNA@Anno$class, sep="-", pac_tRNA@Anno$genome))
+
+df_l<-tidyr::gather(df, key="sample", value="cpm", -c(type, gen, type.1, genome))
+df_s<-aggregate(df_l$cpm, by=list(df_l$sample), FUN=mean)
+
+
+df_hm<-df[,c(1:4)]
+df_hm<-aggregate(df_hm[,1:3], by=list(df_hm$type), FUN=mean)
+rownames(df_hm)<-df_hm$Group.1
+
+ 
+out<-pheatmap::pheatmap(df_hm[,c(2,3,4)],
+                        scale="row", 
+                        cluster_col=FALSE, 
+                        show_rownames = TRUE, 
+                        cutree_rows = 4,
+                        #gaps_col = c(3,6),
+                        color = colorRampPalette(c("#0417D6", "#F9F4D1", "#D04116"))(50))
+
+
+
+#   Sup. Fig 5 B ---------
+
+pac_mito<-PAC_filter(pac_tRNA, anno_target = list("genome", "mito"))
+
+map_object_tRNA <- PAC_mapper(pac_mito, 
+                              ref="C:/Users/sigsk47/Documents/PhD/Students and teaching/R/Genomes/Drosophila_melanogaster/Drosophila_melanogaster/tRNA/tRNA/tRNA.fa", 
+                              mismatches=0, 
+                              threads=1, 
+                              report_string = T)
+map_object<-map_rangetype(map_object_tRNA, type="percent")
+
+map_object_ss <- map_rangetype(map_object, min_loop_width = 4,
+                               type="ss", 
+                               ss="C:/Users/sigsk47/Documents/PhD/Students and teaching/R/Genomes/Drosophila_melanogaster/Drosophila_melanogaster/tRNA/Finished_tRNA_Drosophila_loop_anno.ss")       
+
+
+plts<-PAC_covplot(pac_mito, map=map_object_tRNA, summary_target = list("cpmMeans_Diet"), style="solid")
+library(patchwork)
+(plts$`mt-tRNA-Met-CAT`/plts$`mt-tRNA-Ser-GCT`/plts$`mt-tRNA-Gly-TCC`)|
+(plts$`mt-tRNA-Ile-GAT`/plts$`mt-tRNA-Trp-TCA`/plts$`mt-tRNA-Cys-GCA`)
+
